@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>내 주변 병원 찾기</title>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&display=swap" rel="stylesheet"/>
+  <style>
+    :root {
+      --red: #E8392A; --red-light: #FF6B5B; --red-pale: #FFF0EE;
+      --dark: #1A1A2E; --mid: #2D2D44; --gray: #8B8B9E;
+      --light: #F4F5F9; --white: #FFFFFF; --radius: 16px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { font-family: 'Noto Sans KR', sans-serif; background: var(--light); color: var(--dark); min-height: 100vh; display: flex; flex-direction: column; }
+    header { background: var(--dark); color: var(--white); padding: 0 24px; height: 64px; display: flex; align-items: center; justify-content: space-between; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 16px rgba(0,0,0,0.3); }
+    .logo { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 900; }
+    .logo-icon { width: 36px; height: 36px; background: var(--red); border-radius: 10px; display: flex; align-items: center; justify-content: center; font-size: 20px; }
+    .header-sub { font-size: 12px; color: var(--gray); }
+    .app-wrap { display: flex; flex: 1; height: calc(100vh - 64px); overflow: hidden; }
+    .side { width: 360px; min-width: 320px; background: var(--white); display: flex; flex-direction: column; box-shadow: 2px 0 16px rgba(0,0,0,0.06); z-index: 10; overflow-y: auto; }
+    .search-box { padding: 20px 20px 16px; border-bottom: 1px solid #EEEEF3; }
+    .search-title { font-size: 12px; font-weight: 700; color: var(--gray); letter-spacing: 1px; text-transform: uppercase; margin-bottom: 12px; }
+    .keyword-row { display: flex; gap: 8px; margin-bottom: 12px; }
+    .keyword-input { flex: 1; border: 2px solid #EEEEF3; border-radius: 10px; padding: 10px 14px; font-size: 14px; font-family: 'Noto Sans KR', sans-serif; outline: none; transition: border-color 0.2s; }
+    .keyword-input:focus { border-color: var(--red); }
+    .btn-search { background: var(--red); color: white; border: none; border-radius: 10px; padding: 10px 16px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; transition: background 0.2s; white-space: nowrap; }
+    .btn-search:hover { background: var(--red-light); }
+    .category-row { display: flex; gap: 6px; flex-wrap: wrap; }
+    .cat-btn { border: 1.5px solid #EEEEF3; background: var(--white); border-radius: 20px; padding: 5px 12px; font-size: 12px; font-weight: 500; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; color: var(--dark); transition: all 0.18s; }
+    .cat-btn:hover, .cat-btn.active { background: var(--red); border-color: var(--red); color: white; }
+    .location-bar { padding: 12px 20px; border-bottom: 1px solid #EEEEF3; }
+    .btn-location { width: 100%; background: var(--dark); color: white; border: none; border-radius: 10px; padding: 12px 16px; font-size: 14px; font-weight: 700; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; display: flex; align-items: center; justify-content: center; gap: 8px; transition: background 0.2s; }
+    .btn-location:hover { background: var(--mid); }
+    .btn-location:disabled { opacity: 0.6; cursor: not-allowed; }
+    .location-info { padding: 10px 20px; background: #F0FFF4; border-bottom: 1px solid #EEEEF3; font-size: 12px; color: #2D6A4F; display: none; align-items: center; gap: 6px; }
+    .location-info.show { display: flex; }
+    .quick-section { padding: 14px 20px; border-bottom: 1px solid #EEEEF3; }
+    .quick-title { font-size: 12px; font-weight: 700; color: var(--gray); margin-bottom: 10px; }
+    .quick-btns { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .quick-btn { background: var(--light); border: 1.5px solid #EEEEF3; border-radius: 10px; padding: 10px 12px; font-size: 13px; font-weight: 600; cursor: pointer; font-family: 'Noto Sans KR', sans-serif; color: var(--dark); text-align: left; transition: all 0.18s; display: flex; align-items: center; gap: 6px; }
+    .quick-btn:hover { background: var(--red-pale); border-color: var(--red-light); color: var(--red); }
+    .map-wrap { flex: 1; position: relative; display: flex; flex-direction: column; }
+    .map-toolbar { background: var(--white); border-bottom: 1px solid #EEEEF3; padding: 10px 16px; display: flex; align-items: center; gap: 10px; font-size: 13px; color: var(--gray); }
+    .map-toolbar strong { color: var(--dark); }
+    #mapFrame { flex: 1; border: none; width: 100%; }
+    .empty-map { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 16px; color: var(--gray); background: var(--light); padding: 40px; text-align: center; }
+    .empty-map .icon { font-size: 64px; }
+    .empty-map .title { font-size: 18px; font-weight: 700; color: var(--dark); }
+    .empty-map .desc { font-size: 14px; line-height: 1.7; }
+    .empty-map .arrow { font-size: 28px; animation: bounce 1.2s infinite; }
+    @keyframes bounce { 0%,100% { transform: translateX(-8px); } 50% { transform: translateX(0); } }
+    .toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--dark); color: white; padding: 12px 24px; border-radius: 30px; font-size: 14px; font-weight: 500; z-index: 9999; transition: transform 0.3s cubic-bezier(0.34,1.56,0.64,1); pointer-events: none; white-space: nowrap; }
+    .toast.show { transform: translateX(-50%) translateY(0); }
+    @media (max-width: 700px) { .app-wrap { flex-direction: column; height: auto; } .side { width: 100%; min-width: unset; } .map-wrap { height: 50vh; } }
+  </style>
+</head>
+<body>
+<header>
+  <div class="logo"><div class="logo-icon">🏥</div>내 주변 병원 찾기</div>
+  <span class="header-sub">카카오맵 연동 · API 키 불필요</span>
+</header>
+<div class="app-wrap">
+  <div class="side">
+    <div class="search-box">
+      <div class="search-title">🔍 병원 검색</div>
+      <div class="keyword-row">
+        <input class="keyword-input" id="keywordInput" type="text" placeholder="병원명 또는 진료과 입력" onkeydown="if(event.key==='Enter') doSearch()"/>
+        <button class="btn-search" onclick="doSearch()">검색</button>
+      </div>
+      <div class="category-row">
+        <button class="cat-btn active" onclick="setCat(this,'병원')">🏥 전체</button>
+        <button class="cat-btn" onclick="setCat(this,'내과')">내과</button>
+        <button class="cat-btn" onclick="setCat(this,'정형외과')">정형외과</button>
+        <button class="cat-btn" onclick="setCat(this,'소아과')">소아과</button>
+        <button class="cat-btn" onclick="setCat(this,'치과')">치과</button>
+        <button class="cat-btn" onclick="setCat(this,'약국')">💊 약국</button>
+        <button class="cat-btn" onclick="setCat(this,'응급실')">🚨 응급</button>
+      </div>
+    </div>
+    <div class="location-bar">
+      <button class="btn-location" id="locBtn" onclick="searchByLocation()">📍 내 현재 위치로 검색</button>
+    </div>
+    <div class="location-info" id="locationInfo">✅ <span id="locationText">위치 확인됨</span></div>
+    <div class="quick-section">
+      <div class="quick-title">⚡ 빠른 검색</div>
+      <div class="quick-btns">
+        <button class="quick-btn" onclick="quickSearch('응급실')">🚨 응급실</button>
+        <button class="quick-btn" onclick="quickSearch('24시간 병원')">🌙 24시간</button>
+        <button class="quick-btn" onclick="quickSearch('소아과')">👶 소아과</button>
+        <button class="quick-btn" onclick="quickSearch('정형외과')">🦴 정형외과</button>
+        <button class="quick-btn" onclick="quickSearch('치과')">🦷 치과</button>
+        <button class="quick-btn" onclick="quickSearch('약국')">💊 약국</button>
+        <button class="quick-btn" onclick="quickSearch('피부과')">🩺 피부과</button>
+        <button class="quick-btn" onclick="quickSearch('안과')">👁️ 안과</button>
+      </div>
+    </div>
+  </div>
+  <div class="map-wrap">
+    <div class="map-toolbar" id="mapToolbar" style="display:none">
+      🗺️ <strong id="toolbarText">검색 중...</strong>
+      <span style="margin-left:auto;font-size:12px;">지도에서 직접 길찾기 가능</span>
+    </div>
+    <div class="empty-map" id="emptyMap">
+      <div class="arrow">←</div>
+      <div class="icon">🏥</div>
+      <div class="title">병원을 검색해보세요</div>
+      <div class="desc">왼쪽에서 <strong>현재 위치로 검색</strong>을 누르거나<br/>진료과목 버튼을 눌러보세요.<br/><br/>카카오맵에서 바로 길찾기까지 가능합니다!</div>
+    </div>
+    <iframe id="mapFrame" style="display:none;flex:1;border:none;width:100%;height:100%;" allowfullscreen></iframe>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+  let currentCat = '병원';
+  let userLat = null, userLng = null;
+
+  function setCat(btn, cat) {
+    document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    currentCat = cat;
+  }
+
+  function searchByLocation() {
+    const btn = document.getElementById('locBtn');
+    btn.disabled = true;
+    btn.innerHTML = '⏳ 위치 확인 중...';
+    if (!navigator.geolocation) { showToast('위치 서비스를 지원하지 않는 브라우저입니다'); resetBtn(); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => {
+        userLat = pos.coords.latitude;
+        userLng = pos.coords.longitude;
+        document.getElementById('locationInfo').classList.add('show');
+        document.getElementById('locationText').textContent = '현재 위치 기준으로 검색합니다';
+        const keyword = document.getElementById('keywordInput').value.trim() || currentCat;
+        openKakaoMap(keyword);
+        resetBtn();
+        showToast('📍 현재 위치 기준으로 검색합니다!');
+      },
+      err => {
+        showToast('위치 권한이 거부됐어요. 검색창에 지역명을 입력해보세요 (예: 부산 병원)');
+        resetBtn();
+      },
+      { enableHighAccuracy: true, timeout: 10000 }
+    );
+  }
+
+  function doSearch() {
+    const kw = document.getElementById('keywordInput').value.trim();
+    openKakaoMap(kw || currentCat);
+  }
+
+  function quickSearch(keyword) {
+    document.getElementById('keywordInput').value = keyword;
+    openKakaoMap(keyword);
+  }
+
+  function openKakaoMap(keyword) {
+    const frame = document.getElementById('mapFrame');
+    const empty = document.getElementById('emptyMap');
+    const toolbar = document.getElementById('mapToolbar');
+    const toolbarText = document.getElementById('toolbarText');
+
+    let mapUrl;
+    if (userLat && userLng) {
+      mapUrl = `https://map.kakao.com/?q=${encodeURIComponent(keyword)}&center=${userLng},${userLat}&level=4`;
+    } else {
+      mapUrl = `https://map.kakao.com/?q=${encodeURIComponent(keyword)}`;
+    }
+
+    frame.src = mapUrl;
+    frame.style.display = 'block';
+    empty.style.display = 'none';
+    toolbar.style.display = 'flex';
+    toolbarText.textContent = '"' + keyword + '" 검색 결과';
+    showToast('🔍 "' + keyword + '" 검색 중...');
+  }
+
+  function resetBtn() {
+    const btn = document.getElementById('locBtn');
+    btn.disabled = false;
+    btn.innerHTML = '📍 내 현재 위치로 검색';
+  }
+
+  function showToast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    setTimeout(() => t.classList.remove('show'), 3000);
+  }
+</script>
+</body>
+</html>
