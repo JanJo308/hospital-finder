@@ -44,7 +44,7 @@ header{background:var(--dark);color:var(--white);padding:0 24px;height:60px;disp
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--dark);color:white;padding:11px 20px;border-radius:24px;font-size:13px;z-index:9999;transition:transform .3s;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;}
 .toast.show{transform:translateX(-50%) translateY(0);}
 
-/* ── 드래그 핸들 (모바일 전용, 병원 목록 영역 크기 조절) ── */
+/* ── 드래그 핸들 ── */
 .drag-handle{display:none;width:100%;padding:9px 0 6px;justify-content:center;align-items:center;cursor:grab;touch-action:none;background:var(--white);flex-shrink:0;}
 .drag-handle:active{cursor:grabbing;}
 .drag-bar{width:42px;height:5px;border-radius:3px;background:#D8D8E2;}
@@ -111,7 +111,7 @@ header{background:var(--dark);color:var(--white);padding:0 24px;height:60px;disp
 <div class="toast" id="toast"></div>
 
 <script>
-// 카카오 JavaScript 키 (developers.kakao.com에서 발급받은 키를 여기에 등록해두었습니다)
+// 카카오 JavaScript 키
 const KAKAO_JS_KEY = 'ddc452aef0404eb6af92d8a14dc6d285';
 
 let map=null, markers=[], infowindow=null, ps=null;
@@ -288,7 +288,7 @@ function highlightCard(i){
   }
 
   function onDown(e){
-    if(window.innerWidth > 700) return; // 모바일 화면에서만 동작
+    if(window.innerWidth > 700) return;
     computeSnaps();
     dragging = true;
     startY = e.clientY;
