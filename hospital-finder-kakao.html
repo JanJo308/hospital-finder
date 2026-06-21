@@ -44,6 +44,11 @@ header{background:var(--dark);color:var(--white);padding:0 24px;height:60px;disp
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--dark);color:white;padding:11px 20px;border-radius:24px;font-size:13px;z-index:9999;transition:transform .3s;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;}
 .toast.show{transform:translateX(-50%) translateY(0);}
 
+/* ── 드래그 핸들 (모바일 전용, 병원 목록 영역 크기 조절) ── */
+.drag-handle{display:none;width:100%;padding:9px 0 6px;justify-content:center;align-items:center;cursor:grab;touch-action:none;background:var(--white);flex-shrink:0;}
+.drag-handle:active{cursor:grabbing;}
+.drag-bar{width:42px;height:5px;border-radius:3px;background:#D8D8E2;}
+
 /* ── 모바일 반응형 ── */
 @media (max-width: 700px){
   header{padding:0 14px;height:52px;}
@@ -51,9 +56,10 @@ header{background:var(--dark);color:var(--white);padding:0 24px;height:60px;disp
   .logo-icon{width:26px;height:26px;font-size:13px;}
   header > span{display:none;}
 
-  .app-wrap{flex-direction:column;height:auto;overflow:visible;}
-  .side{width:100%;min-width:unset;max-height:42vh;box-shadow:0 2px 12px rgba(0,0,0,.08);order:2;}
-  #map{min-height:46vh;order:1;}
+  .app-wrap{flex-direction:column;height:calc(100vh - 52px);overflow:hidden;}
+  .side{width:100%;min-width:unset;height:42vh;flex:none;order:2;box-shadow:0 -2px 12px rgba(0,0,0,.08);}
+  #map{flex:1;order:1;min-height:0;}
+  .drag-handle{display:flex;}
 
   .search-box{padding:12px 14px;}
   .cat-row{gap:5px;}
@@ -63,8 +69,7 @@ header{background:var(--dark);color:var(--white);padding:0 24px;height:60px;disp
   .hosp-actions a{font-size:11px;padding:4px 8px;margin-right:4px;margin-bottom:4px;}
 }
 @media (max-width: 420px){
-  .side{max-height:48vh;}
-  #map{min-height:42vh;}
+  .side{height:48vh;}
 }
 </style>
 </head>
@@ -77,6 +82,7 @@ header{background:var(--dark);color:var(--white);padding:0 24px;height:60px;disp
 
 <div class="app-wrap">
   <div class="side">
+    <div class="drag-handle" id="dragHandle"><div class="drag-bar"></div></div>
     <div class="search-box">
       <div class="search-title">🔍 병원 검색</div>
       <div class="keyword-row">
@@ -105,7 +111,7 @@ header{background:var(--dark);color:var(--white);padding:0 24px;height:60px;disp
 <div class="toast" id="toast"></div>
 
 <script>
-// 카카오 JavaScript 키 
+// 카카오 JavaScript 키 (developers.kakao.com에서 발급받은 키를 여기에 등록해두었습니다)
 const KAKAO_JS_KEY = 'ddc452aef0404eb6af92d8a14dc6d285';
 
 let map=null, markers=[], infowindow=null, ps=null;
@@ -316,6 +322,44 @@ function showStraightLine(i,lat,lng,name){
   highlightCard(i);
   showToast(`📏 ${name}까지 직선거리 약 ${distText} (실제 도로 거리와는 차이가 있을 수 있어요)`);
 }
+
+// ── 모바일 바텀시트 드래그 (병원 목록 영역 크기 조절) ──
+(function(){
+  const handle = document.getElementById('dragHandle');
+  const sideEl = document.querySelector('.side');
+  let dragging = false, startY = 0, startHeight = 0;
+
+  function clamp(v, min, max){ return Math.max(min, Math.min(max, v)); }
+
+  function onDown(e){
+    if(window.innerWidth > 700) return; // 모바일 화면에서만 동작
+    dragging = true;
+    startY = e.clientY;
+    startHeight = sideEl.getBoundingClientRect().height;
+    try{ handle.setPointerCapture(e.pointerId); }catch(err){}
+    document.body.style.userSelect = 'none';
+  }
+  function onMove(e){
+    if(!dragging) return;
+    const headerH = document.querySelector('header').offsetHeight;
+    const availableH = window.innerHeight - headerH;
+    const delta = startY - e.clientY; // 위로 드래그하면 양수 → 목록 영역 커짐
+    let newHeight = clamp(startHeight + delta, availableH*0.16, availableH*0.85);
+    sideEl.style.height = newHeight + 'px';
+  }
+  function onUp(e){
+    if(!dragging) return;
+    dragging = false;
+    document.body.style.userSelect = '';
+    try{ handle.releasePointerCapture(e.pointerId); }catch(err){}
+  }
+
+  handle.addEventListener('pointerdown', onDown);
+  handle.addEventListener('pointermove', onMove);
+  handle.addEventListener('pointerup', onUp);
+  handle.addEventListener('pointercancel', onUp);
+})();
+
 </script>
 </body>
 </html>
