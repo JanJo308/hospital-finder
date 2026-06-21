@@ -12,7 +12,8 @@
   --light:#F4F5F9; --white:#FFFFFF;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
-body{font-family:'Noto Sans KR',sans-serif;background:var(--light);color:var(--dark);min-height:100vh;display:flex;flex-direction:column;}
+html{height:100%;}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--light);color:var(--dark);height:100vh;overflow:hidden;display:flex;flex-direction:column;}
 header{background:var(--dark);color:var(--white);padding:0 24px;height:60px;display:flex;align-items:center;justify-content:space-between;}
 .logo{display:flex;align-items:center;gap:10px;font-size:18px;font-weight:900;}
 .logo-icon{width:32px;height:32px;background:var(--red);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:16px;}
@@ -44,7 +45,7 @@ header{background:var(--dark);color:var(--white);padding:0 24px;height:60px;disp
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--dark);color:white;padding:11px 20px;border-radius:24px;font-size:13px;z-index:9999;transition:transform .3s;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;}
 .toast.show{transform:translateX(-50%) translateY(0);}
 
-/* ── 드래그 핸들 ── */
+/* ── 드래그 핸들 (모바일 전용, 병원 목록 영역 크기 조절) ── */
 .drag-handle{display:none;width:100%;padding:9px 0 6px;justify-content:center;align-items:center;cursor:grab;touch-action:none;background:var(--white);flex-shrink:0;}
 .drag-handle:active{cursor:grabbing;}
 .drag-bar{width:42px;height:5px;border-radius:3px;background:#D8D8E2;}
@@ -111,7 +112,7 @@ header{background:var(--dark);color:var(--white);padding:0 24px;height:60px;disp
 <div class="toast" id="toast"></div>
 
 <script>
-// 카카오 JavaScript 키
+// 카카오 JavaScript 키 (developers.kakao.com에서 발급받은 키를 여기에 등록해두었습니다)
 const KAKAO_JS_KEY = 'ddc452aef0404eb6af92d8a14dc6d285';
 
 let map=null, markers=[], infowindow=null, ps=null;
@@ -281,14 +282,14 @@ function highlightCard(i){
   function computeSnaps(){
     const headerH = document.querySelector('header').offsetHeight;
     const availableH = window.innerHeight - headerH;
-   
+    // 최소 높이는 항상 손잡이+검색창 일부가 보이도록 150px 또는 18% 중 더 큰 값으로 보장
     snapMin = Math.max(availableH * 0.18, 150);
     snapMid = availableH * 0.42;
     snapMax = availableH * 0.85;
   }
 
   function onDown(e){
-    if(window.innerWidth > 700) return;
+    if(window.innerWidth > 700) return; // 모바일 화면에서만 동작
     computeSnaps();
     dragging = true;
     startY = e.clientY;
@@ -299,7 +300,7 @@ function highlightCard(i){
   }
   function onMove(e){
     if(!dragging) return;
-    const delta = startY - e.clientY; 
+    const delta = startY - e.clientY; // 위로 드래그하면 양수 → 목록 영역 커짐
     const newHeight = clamp(startHeight + delta, snapMin, snapMax);
     sideEl.style.height = newHeight + 'px';
   }
@@ -309,7 +310,7 @@ function highlightCard(i){
     document.body.style.userSelect = '';
     try{ handle.releasePointerCapture(e.pointerId); }catch(err){}
 
-    // 가장 가까운 스냅 위치
+    // 가장 가까운 스냅 위치(접힘/중간/최대)로 자동으로 붙이기
     const cur = sideEl.getBoundingClientRect().height;
     const points = [snapMin, snapMid, snapMax];
     let nearest = points[0];
@@ -327,7 +328,7 @@ function highlightCard(i){
   handle.addEventListener('pointerup', onUp);
   handle.addEventListener('pointercancel', onUp);
 
-  // 최소/최대 범위를 벗어나지 않도록 보정
+  // 화면 회전/크기 변경 시 현재 높이가 새 최소/최대 범위를 벗어나지 않도록 보정
   window.addEventListener('resize', ()=>{
     if(window.innerWidth > 700) return;
     computeSnaps();
