@@ -39,8 +39,15 @@ header{background:var(--dark);color:var(--white);padding:0 24px;height:60px;disp
 .hosp-card.active{border-color:var(--red);background:var(--red-pale);}
 .hosp-name{font-size:14px;font-weight:700;margin-bottom:3px;}
 .hosp-addr{font-size:11.5px;color:var(--gray);margin-bottom:6px;}
-.hosp-dist{display:inline-block;background:var(--red-pale);color:var(--red);font-size:11px;font-weight:700;padding:2px 8px;border-radius:14px;margin-bottom:6px;}
-.hosp-actions a{display:inline-block;background:var(--red);color:white;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:6px;text-decoration:none;margin-right:6px;}
+.hosp-dist{display:inline-block;background:var(--red-pale);color:var(--red);font-size:11px;font-weight:700;padding:2px 8px;border-radius:14px;margin-bottom:4px;}
+.hosp-category{display:inline-block;background:#F0F4FF;color:#3B5BDB;font-size:11px;font-weight:600;padding:2px 8px;border-radius:14px;margin-bottom:6px;margin-left:4px;}
+.hosp-actions a{display:inline-block;background:var(--red);color:white;font-size:11.5px;font-weight:700;padding:4px 10px;border-radius:6px;text-decoration:none;margin-right:6px;margin-bottom:4px;}
+.hosp-actions a.detail{background:#F0F4FF;color:#3B5BDB;}
+.hosp-actions a.call{background:#F0FFF4;color:#2D6A4F;}
+.open-badge{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:14px;margin-left:4px;vertical-align:middle;}
+.open-badge.open{background:#E8F5E9;color:#2E7D32;}
+.open-badge.closed{background:#FFEBEE;color:#C62828;}
+.open-badge.loading{background:#F5F5F5;color:#9E9E9E;}
 #map{flex:1;background:#E5E7EB;display:flex;align-items:center;justify-content:center;color:var(--gray);font-size:14px;}
 .toast{position:fixed;bottom:24px;left:50%;transform:translateX(-50%) translateY(80px);background:var(--dark);color:white;padding:11px 20px;border-radius:24px;font-size:13px;z-index:9999;transition:transform .3s;white-space:nowrap;max-width:90vw;overflow:hidden;text-overflow:ellipsis;}
 .toast.show{transform:translateX(-50%) translateY(0);}
@@ -78,7 +85,7 @@ header{background:var(--dark);color:var(--white);padding:0 24px;height:60px;disp
 
 <header>
   <div class="logo"><div class="logo-icon">🏥</div>내 주변 병원 찾기</div>
-  <span style="font-size:11px;color:var(--gray)"></span>
+  <span style="font-size:11px;color:var(--gray)">현재 위치 기반 병원 탐색</span>
 </header>
 
 <div class="app-wrap">
@@ -218,8 +225,18 @@ function searchNearby(lat,lng,keyword){
   ps.keywordSearch(keyword||currentCat, (data,status)=>{
     clearMarkers();
     if(status===kakao.maps.services.Status.OK){
-      renderList(data); addMarkers(data);
-      document.getElementById('resultCount').innerHTML = `<strong style="color:#E8392A">${data.length}개</strong> 검색됨`;
+      // 병원/약국 카테고리만 필터링 (HP8=병원, PM9=약국, 키워드가 응급실 등일 때는 그대로)
+      const filtered = data.filter(p =>
+        p.category_group_code === 'HP8' ||
+        p.category_group_code === 'PM9' ||
+        p.category_name.includes('병원') ||
+        p.category_name.includes('의원') ||
+        p.category_name.includes('약국') ||
+        p.category_name.includes('의료')
+      );
+      const list = filtered.length > 0 ? filtered : data;
+      renderList(list); addMarkers(list);
+      document.getElementById('resultCount').innerHTML = `<strong style="color:#E8392A">${list.length}개</strong> 검색됨`;
     } else {
       document.getElementById('hospList').innerHTML='<div style="padding:20px;text-align:center;color:#8B8B9E;font-size:13px">검색 결과가 없습니다</div>';
       document.getElementById('resultCount').textContent='결과 없음';
@@ -249,16 +266,60 @@ function renderList(places){
   document.getElementById('hospList').innerHTML = places.map((p,i)=>{
     const dist = p.distance ? (p.distance>=1000 ? (p.distance/1000).toFixed(1)+'km' : p.distance+'m') : '';
     const navi = `https://map.kakao.com/link/to/${p.place_name},${p.y},${p.x}`;
+    // 진료과목 추출: "의료,건강 > 병원 > 내과" → "내과"
+    const catParts = (p.category_name||'').split('>');
+    const specialty = catParts.length > 1 ? catParts[catParts.length-1].trim() : '';
     return `<div class="hosp-card" id="card-${i}" onclick="focusPlace(${i},${p.y},${p.x})">
-      ${dist?`<span class="hosp-dist">📍 ${dist}</span>`:''}
+      <div style="margin-bottom:5px">
+        ${dist?`<span class="hosp-dist">📍 ${dist}</span>`:''}
+        ${specialty?`<span class="hosp-category">🏥 ${specialty}</span>`:''}
+        <span class="open-badge loading" id="open-${p.id}">확인 중...</span>
+      </div>
       <div class="hosp-name">${p.place_name}</div>
       <div class="hosp-addr">${p.road_address_name||p.address_name}</div>
       <div class="hosp-actions">
         <a href="${navi}" target="_blank" onclick="event.stopPropagation()">🗺️ 길찾기</a>
-        ${p.phone?`<a href="tel:${p.phone}" onclick="event.stopPropagation()">📞 ${p.phone}</a>`:''}
+        ${p.place_url?`<a class="detail" href="${p.place_url}" target="_blank" onclick="event.stopPropagation()">🕐 운영시간</a>`:''}
+        ${p.phone?`<a class="call" href="tel:${p.phone}" onclick="event.stopPropagation()">📞 ${p.phone}</a>`:''}
       </div>
     </div>`;
   }).join('');
+
+  // 카드 렌더링 후 영업중 여부 비동기로 확인
+  places.forEach(p => { if(p.id) fetchOpenStatus(p.id); });
+}
+
+// 카카오 장소 상세 API로 영업중 여부 확인
+async function fetchOpenStatus(placeId){
+  const badge = document.getElementById('open-' + placeId);
+  if(!badge) return;
+  try {
+    const res = await fetch(
+      `https://place.map.kakao.com/main/v/${placeId}`,
+      { headers: { 'Accept': 'application/json' } }
+    );
+    if(!res.ok) throw new Error('fetch fail');
+    const json = await res.json();
+
+    // 운영시간 정보 파싱
+    const basicInfo = json?.basicInfo;
+    const openNow = basicInfo?.openNow;        // true / false
+    const openHour = basicInfo?.openHour;      // 오늘 운영시간 텍스트
+
+    if(openNow === true){
+      badge.className = 'open-badge open';
+      badge.textContent = '🟢 영업중';
+    } else if(openNow === false){
+      badge.className = 'open-badge closed';
+      badge.textContent = '🔴 영업종료';
+    } else {
+      // 데이터 없으면 배지 숨김
+      badge.style.display = 'none';
+    }
+  } catch(e) {
+    // CORS 또는 오류 시 배지 조용히 숨김 (기존 기능에 영향 없음)
+    badge.style.display = 'none';
+  }
 }
 function focusPlace(i,lat,lng){
   map.setCenter(new kakao.maps.LatLng(lat,lng)); map.setLevel(3);
